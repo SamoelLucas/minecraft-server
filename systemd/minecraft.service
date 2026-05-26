@@ -1,0 +1,30 @@
+[Unit]
+Description=Servidor Minecraft NeoForge 1.21.1
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Troque pelo usuário que vai rodar o servidor (nunca root)
+User=minecraft
+Group=minecraft
+
+WorkingDirectory=/opt/minecraft
+
+# Usa screen para manter console interativo
+ExecStart=/usr/bin/screen -DmS minecraft /opt/minecraft/start.sh
+ExecStop=/usr/bin/screen -S minecraft -p 0 -X stuff "stop$(printf '\r')"
+
+# Aguarda até 60s para parar graciosamente
+TimeoutStopSec=60
+KillMode=none
+
+# Reinício automático em caso de crash
+Restart=on-failure
+RestartSec=15s
+
+# Limites de recursos
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
