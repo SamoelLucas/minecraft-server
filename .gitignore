@@ -1,0 +1,24 @@
+# Arquivos gerados na instalação — não versionar
+libraries/
+logs/
+world/
+world_nether/
+world_the_end/
+crash-reports/
+config/
+defaultconfigs/
+kubejs/
+openloader/
+eula.txt
+banned-ips.json
+banned-players.json
+whitelist.json
+usercache.json
+ops.json
+
+# JARs do servidor (pesados demais para o git)
+*.jar
+
+# Temporários
+*.tmp
+*.log
