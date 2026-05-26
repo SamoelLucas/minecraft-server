@@ -1,0 +1,6 @@
+# Argumentos JVM adicionais do NeoForge
+# Este arquivo é lido automaticamente pelo script de início do NeoForge.
+# As flags principais estão em start.sh — não duplique aqui.
+
+# Desativar aviso de módulos do Java 9+
+-Djdk.attach.allowAttachSelf=true
