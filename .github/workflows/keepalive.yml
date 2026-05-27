@@ -1,0 +1,34 @@
+name: Bot Keep-Alive Aternos
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Roda a cada 5h (GitHub Actions tem limite de 6h por job)
+    - cron: "0 */5 * * *"
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300  # 5 horas
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: minecraft-bot
+        run: npm install
+
+      - name: Run bot
+        working-directory: minecraft-bot
+        env:
+          MC_HOST: ${{ secrets.MC_HOST }}
+          MC_USERNAME: ${{ secrets.MC_USERNAME }}
+          MC_PORT: ${{ secrets.MC_PORT || '25565' }}
+          MC_VERSION: ${{ secrets.MC_VERSION || '' }}
+        run: node bot.mjs
