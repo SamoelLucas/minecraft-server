@@ -38,7 +38,10 @@ JVM_FLAGS=(
 # ── Localizar o JAR do NeoForge ───────────────────────────────────────────────
 SERVER_JAR=$(find . -maxdepth 1 -name "neoforge-*-shim.jar" 2>/dev/null | head -n1)
 if [ -z "$SERVER_JAR" ]; then
-  SERVER_JAR=$(find . -maxdepth 1 -name "neoforge-*.jar" ! -name "*installer*" 2>/dev/null | head -n1)
+  SERVER_JAR=$(find . -name "neoforge-*-server.jar" 2>/dev/null | head -n1)
+fi
+if [ -z "$SERVER_JAR" ]; then
+  SERVER_JAR=$(find . -name "neoforge-*.jar" ! -name "*installer*" 2>/dev/null | head -n1)
 fi
 if [ -z "$SERVER_JAR" ]; then
   echo "[ERRO] JAR do servidor não encontrado. Execute ./install.sh primeiro."
