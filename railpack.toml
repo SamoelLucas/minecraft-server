@@ -1,0 +1,5 @@
+[build]
+cmd = "bash install.sh"
+
+[start]
+cmd = "bash start.sh"
