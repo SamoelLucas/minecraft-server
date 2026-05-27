@@ -1,0 +1,14 @@
+{
+  "name": "aternos-keepalive-bot",
+  "version": "1.0.0",
+  "description": "Bot keep-alive para servidor Aternos",
+  "main": "bot.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.mjs"
+  },
+  "dependencies": {
+    "mineflayer": "^4.23.0",
+    "minecraft-protocol": "^1.47.0"
+  }
+}
