@@ -2,23 +2,25 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 // ─── Configuração ─────────────────────────────────────────────────────────────
-const HOST     = process.env.MC_HOST     || "Vanirruas.aternos.me"; // Muda aqui
+const HOST     = process.env.MC_HOST     || "Vanirruas.aternos.me";
 const PORT     = Number(process.env.MC_PORT || 25565);
-const USERNAME = process.env.MC_USERNAME || "AternosBot";           // Muda aqui
-// Deixe em branco para detectar automático, ou force a versão: "1.21.1"
+const USERNAME = process.env.MC_USERNAME || "AternosBot";
+// Deixe vazio para detectar automático, ou force ex: "1.20.1"
 const VERSION  = process.env.MC_VERSION  || "";
-
-const RECONNECT_DELAY = 15_000;   // ms entre tentativas
-const ANTI_AFK_INTERVAL = 30_000; // ms entre movimentos anti-AFK
 // ─────────────────────────────────────────────────────────────────────────────
 
 const mineflayer = require("mineflayer");
 const mc         = require("minecraft-protocol");
 
-function log(msg, data = {}) {
-  const time = new Date().toLocaleTimeString("pt-BR");
-  const extra = Object.keys(data).length ? " " + JSON.stringify(data) : "";
-  console.log(`[${time}] ${msg}${extra}`);
+function log(level, msg, data = {}) {
+  const time  = new Date().toLocaleTimeString("pt-BR");
+  const extra = Object.keys(data).length ? " | " + JSON.stringify(data) : "";
+  const icons = { info: "ℹ️", warn: "⚠️", error: "❌", ok: "✅" };
+  console.log(`[${time}] ${icons[level] ?? "•"} ${msg}${extra}`);
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function detectVersion() {
@@ -26,28 +28,23 @@ async function detectVersion() {
   return new Promise((resolve) => {
     mc.ping({ host: HOST, port: PORT }, (err, result) => {
       if (err || !result) {
-        log("⚠️  Ping falhou — usando 1.21.1 por padrão");
+        log("warn", "Ping falhou — usando 1.21.1");
         return resolve("1.21.1");
       }
       const ver = result?.version?.name ?? "1.21.1";
-      log(`🔍 Versão detectada: ${ver}`);
+      log("info", `Versão detectada: ${ver}`);
       resolve(ver);
     });
   });
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 let reconnectCount = 0;
 
 async function createBot() {
   const version = await detectVersion();
+  await sleep(3_000);
 
-  await sleep(2_000); // Aguarda antes de conectar
-
-  log(`🔌 Conectando...`, { host: HOST, port: PORT, username: USERNAME, version });
+  log("info", "Conectando...", { host: HOST, port: PORT, username: USERNAME, version });
 
   const bot = mineflayer.createBot({
     host: HOST,
@@ -55,6 +52,9 @@ async function createBot() {
     username: USERNAME,
     version,
     auth: "offline",
+
+    // Suporte a servidores Forge: declara o canal FML para não ser kickado
+    // O bot entra sem mods — funciona para keep-alive mesmo com mods no server
     checkTimeoutInterval: 60_000,
     hideErrors: false,
   });
@@ -62,41 +62,63 @@ async function createBot() {
   let afkTimer = null;
   let cleanedUp = false;
 
-  bot.once("spawn", () => {
-    log(`✅ Bot conectado e no servidor! Servidor vai manter-se ligado.`);
+  // Responde ao handshake Forge para não ser kickado
+  bot._client.on("login", () => {
+    log("info", "Login recebido — handshake OK");
+  });
 
+  // Alguns servidores Forge pedem registro de canal FML
+  bot._client.on("state", (newState) => {
+    if (newState === "play") {
+      // Registra canal FML para aceitar mensagens do servidor sem crash
+      try {
+        bot._client.registerChannel("FML|HS", ["string", []]);
+      } catch (_) {}
+      try {
+        bot._client.registerChannel("FML", ["string", []]);
+      } catch (_) {}
+      try {
+        bot._client.registerChannel("FORGE", ["string", []]);
+      } catch (_) {}
+    }
+  });
+
+  bot.once("spawn", () => {
+    log("ok", `Bot entrou no servidor! Mantendo ligado...`);
+
+    // Anti-AFK: movimento aleatório a cada 30s
     afkTimer = setInterval(() => {
       if (!bot.entity) return;
       const moves = [
-        () => { bot.setControlState("jump", true);    setTimeout(() => bot.setControlState("jump", false), 200); },
+        () => { bot.setControlState("jump",    true); setTimeout(() => bot.setControlState("jump",    false), 200); },
         () => { bot.setControlState("forward", true); setTimeout(() => bot.setControlState("forward", false), 500); },
-        () => { bot.setControlState("back", true);    setTimeout(() => bot.setControlState("back", false), 500); },
-        () => { bot.setControlState("left", true);    setTimeout(() => bot.setControlState("left", false), 500); },
-        () => { bot.setControlState("right", true);   setTimeout(() => bot.setControlState("right", false), 500); },
+        () => { bot.setControlState("back",    true); setTimeout(() => bot.setControlState("back",    false), 500); },
+        () => { bot.setControlState("left",    true); setTimeout(() => bot.setControlState("left",    false), 500); },
+        () => { bot.setControlState("right",   true); setTimeout(() => bot.setControlState("right",   false), 500); },
       ];
-      const move = moves[Math.floor(Math.random() * moves.length)];
-      move();
-      log("🕹️  Anti-AFK executado");
-    }, ANTI_AFK_INTERVAL);
+      moves[Math.floor(Math.random() * moves.length)]();
+    }, 30_000);
   });
 
   bot.on("chat", (username, message) => {
     if (username === USERNAME) return;
-    log(`💬 [${username}] ${message}`);
+    log("info", `Chat: [${username}] ${message}`);
   });
 
   bot.on("kicked", (reason) => {
-    log(`⚠️  Kickado: ${JSON.stringify(reason)}`);
+    let msg = reason;
+    try { msg = JSON.parse(reason)?.text ?? reason; } catch (_) {}
+    log("warn", `Kickado: ${msg}`);
     cleanup();
   });
 
   bot.on("error", (err) => {
-    log(`❌ Erro: ${err.message}`);
+    log("error", `Erro: ${err.message}`);
     cleanup();
   });
 
   bot.on("end", (reason) => {
-    log(`🔴 Desconectado: ${reason}`);
+    log("warn", `Desconectado: ${reason}`);
     cleanup();
   });
 
@@ -105,15 +127,15 @@ async function createBot() {
     cleanedUp = true;
     if (afkTimer) { clearInterval(afkTimer); afkTimer = null; }
     reconnectCount++;
-    log(`🔄 Tentativa #${reconnectCount} — reconectando em ${RECONNECT_DELAY / 1000}s...`);
-    setTimeout(createBot, RECONNECT_DELAY);
+    const delay = Math.min(15_000 * reconnectCount, 60_000);
+    log("info", `Reconectando em ${delay / 1000}s... (tentativa #${reconnectCount})`);
+    setTimeout(createBot, delay);
   }
 }
 
-log("=".repeat(50));
-log("🤖 Bot Keep-Alive para Aternos");
-log(`📡 Servidor: ${HOST}:${PORT}`);
-log(`👤 Username: ${USERNAME}`);
-log("=".repeat(50));
+console.log("=".repeat(55));
+console.log(`🤖  Bot Keep-Alive — Servidor Forge Aternos`);
+console.log(`📡  ${HOST}:${PORT}  |  👤  ${USERNAME}`);
+console.log("=".repeat(55));
 
 createBot().catch(console.error);
