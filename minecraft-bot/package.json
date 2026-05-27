@@ -1,9 +1,12 @@
 {
   "name": "aternos-keepalive-bot",
   "version": "1.0.0",
-  "description": "Bot keep-alive para servidor Aternos",
+  "description": "Bot keep-alive para servidor Forge/Aternos",
   "main": "bot.mjs",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node bot.mjs"
   },
