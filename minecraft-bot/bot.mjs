@@ -100,10 +100,9 @@ async function createBot() {
     }, 30_000);
   });
 
-  bot.on("chat", (username, message) => {
-    if (username === USERNAME) return;
-    log("info", `Chat: [${username}] ${message}`);
-  });
+  // Bot silencioso — nunca fala no chat
+  bot.chat = () => {};
+  bot.whisper = () => {};
 
   bot.on("kicked", (reason) => {
     let msg = reason;
